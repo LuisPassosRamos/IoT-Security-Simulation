@@ -1,0 +1,11 @@
+# Python dependencies for fog service
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+httpx==0.25.2
+paho-mqtt==1.6.1
+aiocoap==0.4.7
+cryptography==41.0.7
+PyJWT==2.8.0
+cachetools==5.3.2
+psutil==5.9.6
