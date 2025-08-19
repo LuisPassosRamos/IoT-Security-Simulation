@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Security Simulation - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-shield-alt me-2"></i>
+                IoT Security Simulation
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard" id="nav-dashboard">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#sensors" id="nav-sensors">
+                            <i class="fas fa-microchip me-1"></i>Sensors
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#alerts" id="nav-alerts">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Alerts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#events" id="nav-events">
+                            <i class="fas fa-list-ul me-1"></i>Events
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#security" id="nav-security">
+                            <i class="fas fa-lock me-1"></i>Security Demo
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="refreshData()">
+                                <i class="fas fa-sync me-1"></i>Refresh Data
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="logout()">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="content-section">
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="stat-sensors">0</h4>
+                                    <span>Active Sensors</span>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-microchip fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="stat-readings">0</h4>
+                                    <span>Total Readings</span>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="stat-alerts">0</h4>
+                                    <span>Active Alerts</span>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="stat-security">0</h4>
+                                    <span>Security Events</span>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-shield-alt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Sensor Readings
+                            </h5>
+                            <div class="btn-group" role="group" id="chart-time-controls">
+                                <input type="radio" class="btn-check" name="timeRange" id="time-1h" value="1" checked>
+                                <label class="btn btn-outline-primary btn-sm" for="time-1h">1H</label>
+                                
+                                <input type="radio" class="btn-check" name="timeRange" id="time-6h" value="6">
+                                <label class="btn btn-outline-primary btn-sm" for="time-6h">6H</label>
+                                
+                                <input type="radio" class="btn-check" name="timeRange" id="time-24h" value="24">
+                                <label class="btn btn-outline-primary btn-sm" for="time-24h">24H</label>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="telemetryChart" height="100"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-doughnut-bite me-2"></i>Alert Distribution
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="alertsChart" height="150"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-bell me-2"></i>Recent Alerts
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recent-alerts" class="list-group list-group-flush">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-list me-2"></i>Recent Events
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recent-events" class="list-group list-group-flush">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensors Section -->
+        <div id="sensors-section" class="content-section d-none">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-microchip me-2"></i>Sensor Status
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="sensors-grid" class="row">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Section -->
+        <div id="alerts-section" class="content-section d-none">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Alerts Management
+                            </h5>
+                            <div>
+                                <select class="form-select form-select-sm" id="alert-filter">
+                                    <option value="">All Alerts</option>
+                                    <option value="critical">Critical</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="alerts-table-container">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Events Section -->
+        <div id="events-section" class="content-section d-none">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-list-ul me-2"></i>System Events
+                            </h5>
+                            <div>
+                                <select class="form-select form-select-sm" id="event-filter">
+                                    <option value="">All Events</option>
+                                    <option value="telemetry_received">Telemetry</option>
+                                    <option value="security_violation">Security</option>
+                                    <option value="threshold_exceeded">Thresholds</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="events-table-container">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Demo Section -->
+        <div id="security-section" class="content-section d-none">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-lock me-2"></i>Security Demo Mode
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                This demo shows the difference between secure and insecure IoT communication.
+                                Click "Start Demo" to run a comparison showing data collection with and without security measures.
+                            </p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-danger">
+                                        <div class="card-header bg-danger text-white">
+                                            <h6 class="mb-0">Before: No Security</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ul class="list-unstyled">
+                                                <li><i class="fas fa-times text-danger me-2"></i>No message signing</li>
+                                                <li><i class="fas fa-times text-danger me-2"></i>No encryption</li>
+                                                <li><i class="fas fa-times text-danger me-2"></i>No rate limiting</li>
+                                                <li><i class="fas fa-times text-danger me-2"></i>No replay protection</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0">After: Full Security</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <ul class="list-unstyled">
+                                                <li><i class="fas fa-check text-success me-2"></i>HMAC message signing</li>
+                                                <li><i class="fas fa-check text-success me-2"></i>AES-GCM encryption</li>
+                                                <li><i class="fas fa-check text-success me-2"></i>Rate limiting active</li>
+                                                <li><i class="fas fa-check text-success me-2"></i>Replay protection</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-3">
+                                <button id="start-demo" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-play me-2"></i>Start Security Demo
+                                </button>
+                                <button id="stop-demo" class="btn btn-danger btn-lg d-none">
+                                    <i class="fas fa-stop me-2"></i>Stop Demo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demo Results -->
+            <div id="demo-results" class="row d-none">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Demo Timeline</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="demoChart" height="150"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Security Comparison</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="demo-comparison">
+                                <!-- Dynamic content -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/charts.js"></script>
+    <script src="/static/js/security-demo.js"></script>
+</body>
+</html>
