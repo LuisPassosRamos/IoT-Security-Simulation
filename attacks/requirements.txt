@@ -1,0 +1,4 @@
+# Python dependencies for attack scripts
+paho-mqtt==1.6.1
+aiocoap==0.4.7
+asyncio==3.4.3

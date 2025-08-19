@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+      - ./certs:/mosquitto/certs
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME:-iot_user}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-iot_secure_password_2024}
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  sensor-temp:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+      args:
+        SENSOR_TYPE: temp
+    container_name: sensor-temp
+    environment:
+      - SENSOR_ID=temp-01
+      - SENSOR_TYPE=temperature
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_SECURE_PORT=8883
+      - HMAC_KEY=${SENSOR_TEMP_HMAC_KEY}
+      - AES_GCM_KEY=${AES_GCM_KEY}
+      - PUBLISH_INTERVAL=${SENSOR_TEMP_INTERVAL:-10}
+      - ENABLE_ENCRYPTION=${ENABLE_ENCRYPTION:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    ports:
+      - "5683:5683/udp"
+    depends_on:
+      - mosquitto
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  sensor-humidity:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+      args:
+        SENSOR_TYPE: humidity
+    container_name: sensor-humidity
+    environment:
+      - SENSOR_ID=humidity-01
+      - SENSOR_TYPE=humidity
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_SECURE_PORT=8883
+      - HMAC_KEY=${SENSOR_HUMIDITY_HMAC_KEY}
+      - AES_GCM_KEY=${AES_GCM_KEY}
+      - PUBLISH_INTERVAL=${SENSOR_HUMIDITY_INTERVAL:-15}
+      - ENABLE_ENCRYPTION=${ENABLE_ENCRYPTION:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    ports:
+      - "5684:5683/udp"
+    depends_on:
+      - mosquitto
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  sensor-wind:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+      args:
+        SENSOR_TYPE: wind
+    container_name: sensor-wind
+    environment:
+      - SENSOR_ID=wind-01
+      - SENSOR_TYPE=wind
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_SECURE_PORT=8883
+      - HMAC_KEY=${SENSOR_WIND_HMAC_KEY}
+      - AES_GCM_KEY=${AES_GCM_KEY}
+      - PUBLISH_INTERVAL=${SENSOR_WIND_INTERVAL:-12}
+      - ENABLE_ENCRYPTION=${ENABLE_ENCRYPTION:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    ports:
+      - "5685:5683/udp"
+    depends_on:
+      - mosquitto
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  fog:
+    build:
+      context: ./fog
+      dockerfile: Dockerfile
+    container_name: fog
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_SECURE_PORT=8883
+      - MQTT_USERNAME=${MQTT_USERNAME:-iot_user}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-iot_secure_password_2024}
+      - CLOUD_URL=https://cloud:8443
+      - SENSOR_TEMP_HMAC_KEY=${SENSOR_TEMP_HMAC_KEY}
+      - SENSOR_HUMIDITY_HMAC_KEY=${SENSOR_HUMIDITY_HMAC_KEY}
+      - SENSOR_WIND_HMAC_KEY=${SENSOR_WIND_HMAC_KEY}
+      - AES_GCM_KEY=${AES_GCM_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FOG_API_KEY=${FOG_API_KEY}
+      - TIMESTAMP_WINDOW_SECONDS=${TIMESTAMP_WINDOW_SECONDS:-120}
+      - NONCE_CACHE_SIZE=${NONCE_CACHE_SIZE:-10000}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
+      - ENABLE_SIGNATURE_VERIFICATION=${ENABLE_SIGNATURE_VERIFICATION:-true}
+      - ENABLE_TIMESTAMP_VALIDATION=${ENABLE_TIMESTAMP_VALIDATION:-true}
+      - ENABLE_NONCE_VALIDATION=${ENABLE_NONCE_VALIDATION:-true}
+      - ENABLE_RATE_LIMITING=${ENABLE_RATE_LIMITING:-true}
+      - LOG_LEVEL=${FOG_LOG_LEVEL:-INFO}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mosquitto
+      - cloud
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  cloud:
+    build:
+      context: ./cloud
+      dockerfile: Dockerfile
+    container_name: cloud
+    environment:
+      - DATABASE_URL=${CLOUD_DB_URL:-sqlite:///./app.db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - FOG_API_KEY=${FOG_API_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - LOG_LEVEL=${CLOUD_LOG_LEVEL:-INFO}
+      - ENABLE_TLS=${ENABLE_TLS:-true}
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    volumes:
+      - ./cloud/data:/app/data
+      - ./certs:/app/certs
+    networks:
+      - iot-network
+    restart: unless-stopped
+
+  attacker:
+    build:
+      context: ./attacks
+      dockerfile: Dockerfile
+    container_name: attacker
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - CLOUD_URL=https://cloud:8443
+      - FOG_URL=http://fog:8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - iot-network
+    profiles:
+      - attack
+    depends_on:
+      - mosquitto
+      - fog
+      - cloud
+
+networks:
+  iot-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  cloud_data:
