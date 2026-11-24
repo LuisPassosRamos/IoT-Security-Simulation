@@ -4,6 +4,7 @@ Rate limiting implementation for fog service
 
 import time
 import asyncio
+from time import monotonic
 from typing import Dict, Optional
 from collections import defaultdict
 
@@ -22,7 +23,7 @@ class TokenBucket:
         self.capacity = capacity
         self.refill_rate = refill_rate
         self.tokens = capacity
-        self.last_refill = time.time()
+        self.last_refill = monotonic()
         self._lock = asyncio.Lock()
     
     async def consume(self, tokens: int = 1) -> bool:
@@ -37,7 +38,7 @@ class TokenBucket:
         """
         async with self._lock:
             # Refill tokens based on elapsed time
-            now = time.time()
+            now = monotonic()
             elapsed = now - self.last_refill
             self.tokens = min(
                 self.capacity,
@@ -71,7 +72,7 @@ class LeakyBucket:
         self.capacity = capacity
         self.leak_rate = leak_rate
         self.level = 0.0
-        self.last_leak = time.time()
+        self.last_leak = monotonic()
         self._lock = asyncio.Lock()
     
     async def add(self, amount: int = 1) -> bool:
@@ -86,9 +87,8 @@ class LeakyBucket:
         """
         async with self._lock:
             # Leak items based on elapsed time
-            now = time.time()
-            elapsed = now - self.last_leak
-            self.level = max(0, self.level - elapsed * self.leak_rate)
+            now = monotonic()
+            self.level = self._level_at(now)
             self.last_leak = now
             
             # Check if we can add items without overflow
@@ -99,8 +99,11 @@ class LeakyBucket:
             return False
     
     def get_level(self) -> float:
-        """Get current bucket level"""
-        return self.level
+        """Return the bucket level after accounting for elapsed time."""
+        return self._level_at(monotonic())
+
+    def _level_at(self, now: float) -> float:
+        return max(0, self.level - (now - self.last_leak) * self.leak_rate)
 
 
 class RateLimiter:

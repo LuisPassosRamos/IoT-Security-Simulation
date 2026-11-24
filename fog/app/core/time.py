@@ -27,10 +27,14 @@ def parse_iso_timestamp(timestamp_str: str) -> Optional[float]:
     Returns:
         Timestamp in seconds or None if invalid
     """
+    if not isinstance(timestamp_str, str):
+        return None
     try:
-        dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(timestamp_str)
+        if dt.tzinfo is None:
+            return None
         return dt.timestamp()
-    except (ValueError, TypeError):
+    except (ValueError, OverflowError, OSError):
         return None
 
 

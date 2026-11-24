@@ -2,6 +2,16 @@
 
 A comprehensive educational platform demonstrating IoT security vulnerabilities and defensive measures through a simulated remote greenhouse monitoring system.
 
+## Defensive controls in the fog service
+
+The fog layer verifies message integrity, checks timestamps and limits the rate of incoming readings before forwarding telemetry. The unit tests cover [HMAC verification](fog/tests/test_hmac.py), [timestamp validation](fog/tests/test_time_validation.py) and [rate limiting](fog/tests/test_rate_limiting.py). These checks run with synthetic readings and require no broker, sensor containers or network traffic.
+
+```bash
+cd fog
+python -m pip install -r tests/requirements.txt
+python -m pytest -q
+```
+
 ## 🚀 Quick Start
 
 ```bash

@@ -8,6 +8,13 @@ import time
 from app.ratelimit.limiter import TokenBucket, LeakyBucket, RateLimiter
 
 
+@pytest.fixture
+def clock(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr("app.ratelimit.limiter.monotonic", lambda: now[0])
+    return now
+
+
 class TestTokenBucket:
     """Test token bucket rate limiter"""
     
@@ -31,7 +38,7 @@ class TestTokenBucket:
         assert bucket.get_tokens() == 7
     
     @pytest.mark.asyncio
-    async def test_token_bucket_consume_failure(self):
+    async def test_token_bucket_consume_failure(self, clock):
         """Test token consumption failure"""
         bucket = TokenBucket(capacity=5, refill_rate=1.0)
         
@@ -45,7 +52,7 @@ class TestTokenBucket:
         assert bucket.get_tokens() == 0
     
     @pytest.mark.asyncio
-    async def test_token_bucket_refill(self):
+    async def test_token_bucket_refill(self, clock):
         """Test token refill over time"""
         bucket = TokenBucket(capacity=10, refill_rate=10.0)  # 10 tokens per second
         
@@ -53,16 +60,13 @@ class TestTokenBucket:
         await bucket.consume(10)
         assert bucket.get_tokens() == 0
         
-        # Wait for refill
-        await asyncio.sleep(0.5)  # Wait 0.5 seconds
+        clock[0] += 0.5
         
         # Should have refilled ~5 tokens
         result = await bucket.consume(1)
         assert result is True
         
-        # Check approximate token count (allow for timing variations)
-        tokens = bucket.get_tokens()
-        assert 3 <= tokens <= 6  # Should be around 4-5 tokens
+        assert bucket.get_tokens() == 4
 
 
 class TestLeakyBucket:
@@ -78,7 +82,7 @@ class TestLeakyBucket:
         assert bucket.level == 0  # Starts empty
     
     @pytest.mark.asyncio
-    async def test_leaky_bucket_add_success(self):
+    async def test_leaky_bucket_add_success(self, clock):
         """Test successful item addition"""
         bucket = LeakyBucket(capacity=10, leak_rate=5.0)
         
@@ -88,7 +92,7 @@ class TestLeakyBucket:
         assert bucket.get_level() == 3
     
     @pytest.mark.asyncio
-    async def test_leaky_bucket_add_overflow(self):
+    async def test_leaky_bucket_add_overflow(self, clock):
         """Test bucket overflow"""
         bucket = LeakyBucket(capacity=5, leak_rate=1.0)
         
@@ -102,7 +106,7 @@ class TestLeakyBucket:
         assert bucket.get_level() == 5
     
     @pytest.mark.asyncio
-    async def test_leaky_bucket_leak(self):
+    async def test_leaky_bucket_leak(self, clock):
         """Test bucket leaking over time"""
         bucket = LeakyBucket(capacity=10, leak_rate=10.0)  # 10 items per second
         
@@ -110,12 +114,10 @@ class TestLeakyBucket:
         await bucket.add(10)
         assert bucket.get_level() == 10
         
-        # Wait for leak
-        await asyncio.sleep(0.5)  # Wait 0.5 seconds
-        
-        # Should have leaked ~5 items
-        level = bucket.get_level()
-        assert 4 <= level <= 6  # Should be around 5 items
+        clock[0] += 0.5
+        assert bucket.get_level() == 5
+        assert await bucket.add(5)
+        assert bucket.get_level() == 10
 
 
 class TestRateLimiter:
