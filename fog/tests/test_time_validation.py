@@ -61,6 +61,7 @@ class TestTimeValidation:
         test_cases = [
             "invalid-timestamp",
             "2024-01-01",
+            "2024-01-01T12:00:00",
             "12:00:00",
             "2024-13-01T12:00:00Z",  # Invalid month
             "2024-01-32T12:00:00Z",  # Invalid day
@@ -100,10 +101,12 @@ class TestTimeValidation:
         assert not is_timestamp_valid(future_iso, window_seconds=120)  # Outside 2 minute window
         assert is_timestamp_valid(future_iso, window_seconds=400)  # Within 6+ minute window
     
-    def test_is_timestamp_valid_edge_cases(self):
+    def test_is_timestamp_valid_edge_cases(self, monkeypatch):
         """Test validation edge cases"""
         # Exactly at window boundary
-        boundary_time = datetime.now(timezone.utc) - timedelta(seconds=120)
+        now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        monkeypatch.setattr("app.core.time.get_current_timestamp", now.timestamp)
+        boundary_time = now - timedelta(seconds=120)
         boundary_iso = boundary_time.isoformat()
         
         assert is_timestamp_valid(boundary_iso, window_seconds=120)
